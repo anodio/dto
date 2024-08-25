@@ -1,0 +1,11 @@
+{
+  "name": "anodio/dto",
+    "autoload": {
+        "psr-4": {
+        "Anodio\\Dto\\": "src/"
+        }
+    },
+  "require": {
+    "anodio/core": "^0.1"
+  }
+}
