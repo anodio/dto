@@ -2,6 +2,7 @@
 
 namespace Anodio\Dto;
 
+use Anodio\Core\ContainerStorage;
 use DI\Attribute\Inject;
 use DI\Container;
 
@@ -11,19 +12,24 @@ abstract class AbstractDto implements \JsonSerializable
 
     protected $excepted = [];
 
-    public static ?array $instructions = null;
+    protected function __construct() {
 
-    public static function fromArray(array $data, bool $strict = false): static
+    }
+
+    public static function fromArray(array $data = [], bool $strict = false): static
     {
         $dto = new static();
-        if (static::$instructions===null) {
-            throw new \Exception('The class ' . static::class . ' was not registered as dto. There is no instructions to build it from array.');
+        $container = ContainerStorage::getContainer();
+        $instructions = $container->get('instructions_dto_'.get_class($dto));
+
+        if ($instructions===null) {
+            throw new \Exception('The class ' . get_class($dto) . ' was not registered as dto. There is no instructions to build it from array.');
         }
 
-        foreach (static::$instructions as $property => $instruction) {
+        foreach ($instructions as $property => $instruction) {
             if (!array_key_exists($property, $data)) {
                 if ($strict) {
-                    throw new \Exception('The property ' . $property . ' is required in the class ' . static::class);
+                    throw new \Exception('The property ' . $property . ' is required in the class ' . get_class($dto));
                 } else {
                     continue;
                 }
@@ -57,7 +63,12 @@ abstract class AbstractDto implements \JsonSerializable
     public function toArray(): array
     {
         $array = [];
-        foreach (static::$instructions as $property => $instruction) {
+        $container = ContainerStorage::getContainer();
+        $instructions = $container->get('instructions_dto_'.get_called_class());
+        if ($instructions===null) {
+            throw new \Exception('The class ' . get_called_class() . ' was not registered as dto. There is no instructions to build it to array.');
+        }
+        foreach ($instructions as $property => $instruction) {
             if (count($this->excepted)>0) {
                 if (in_array($property, $this->excepted)) {
                     continue;

@@ -4,10 +4,19 @@ namespace Anodio\Dto\Attributes;
 
 use Anodio\Core\Abstraction\AbstractAttribute;
 use Anodio\Dto\AbstractDto;
+use DI\ContainerBuilder;
 
 #[\Attribute(\Attribute::TARGET_CLASS)]
 class Dto extends AbstractAttribute
 {
+
+    private ContainerBuilder $containerBuilder;
+
+    public function setContainerBuilder(ContainerBuilder $containerBuilder): void
+    {
+        $this->containerBuilder = $containerBuilder;
+    }
+
     public function onClass(string $className): bool
     {
         $reflectionClass = new \ReflectionClass($className);
@@ -22,26 +31,36 @@ class Dto extends AbstractAttribute
         }
         $instructions = [];
         foreach ($reflectionClass->getProperties() as $property) {
-            if ($property->hasType()) {
-                if ($property->getType()->getName()==AbstractDto::class) {
-                    $instructions[$property->getName()] = [
-                        'type' => 'dto',
-                        'dto' => $property->getType()->getName()
-                    ];
-                }
-            } elseif ($property->getType()==='array') {
+            if (!$property->isPublic()) {
+                continue;
+            }
+            if (!$property->hasType()) {
+                throw new \Exception('The property ' . $property->getName() . ' of the class ' . $className . ' must have a type');
+            }
+            if (($property->getType() instanceof \ReflectionType && !($property->getType() instanceof \ReflectionUnionType)) && in_array($property->getType()->getName(), ['string', 'int', 'bool', 'float'])) {
+                $instructions[$property->getName()] = [
+                    'type' => 'common',
+                    'dto' => null
+                ];
+            } elseif (($property->getType() instanceof \ReflectionType && !($property->getType() instanceof \ReflectionUnionType)) && $property->getType()->getName()==='array') {
                 $instructions[$property->getName()] = [
                     'type' => 'array',
                     'dto' => null
                 ];
-            } elseif (str_starts_with($property->getType(), 'array')) {
-                //it can be array of DTO. We need to parse it
-                $exploded = explode('|', $property->getType());
-                if (count($exploded)>2) {
+            } elseif ($property->getType() instanceof \ReflectionUnionType) {
+                if (!count($property->getType()->getTypes())==2) {
                     throw new \Exception('The property ' . $property->getName() . ' of the class ' . $className . ' has unsupported type. It should be array|DTO or DTO|array only.');
                 }
-                if (trim($exploded[0])==='array') {
-                    $type = trim($exploded[1]);
+                $arrayKeyWordKeyFound = null;
+                foreach ($property->getType()->getTypes() as $arrayKeywordKey => $type) {
+                    if ($type->getName()==='array') {
+                        $arrayKeyWordKeyFound = $arrayKeywordKey;
+                    }
+                }
+
+                //it can be array of DTO. We need to parse it
+                if ($arrayKeyWordKeyFound===0) {
+                    $type = trim($property->getType()->getTypes()[1]->getName());
                     $typeReflection = new \ReflectionClass($type);
                     if (!$typeReflection->getParentClass()) {
                         throw new \Exception('The type ' . $type . ' in '.$reflectionClass->getName().' must extend the class Anodio\\Dto\\AbstractDto');
@@ -49,14 +68,14 @@ class Dto extends AbstractAttribute
                     if ($typeReflection->getParentClass()->getName()!==AbstractDto::class) {
                         throw new \Exception('The type ' . $type . ' in '.$reflectionClass->getName().' must extend the class Anodio\\Dto\\AbstractDto');
                     }
-                    $realType = $typeReflection->getParentClass()->getName();
+                    $realType = $typeReflection->getName();
 
                     $instructions[$property->getName()] = [
                         'type' => 'arrayOf',
                         'dto' => $realType
                     ];
                 } else {
-                    $type = trim($exploded[0]);
+                    $type = trim($property->getType()->getTypes()[0]->getName());
                     $typeReflection = new \ReflectionClass($type);
                     if (!$typeReflection->getParentClass()) {
                         throw new \Exception('The type ' . $type . ' in '.$reflectionClass->getName().' must extend the class Anodio\\Dto\\AbstractDto');
@@ -64,7 +83,7 @@ class Dto extends AbstractAttribute
                     if ($typeReflection->getParentClass()->getName()!==AbstractDto::class) {
                         throw new \Exception('The type ' . $type . ' in '.$reflectionClass->getName().' must extend the class Anodio\\Dto\\AbstractDto');
                     }
-                    $realType = $typeReflection->getParentClass()->getName();
+                    $realType = $typeReflection->getName();
 
                     $instructions[$property->getName()] = [
                         'type' => 'arrayOf',
@@ -72,14 +91,33 @@ class Dto extends AbstractAttribute
                     ];
                 }
             } else {
-                $instructions[$property->getName()] = [
-                    'type' => 'common',
-                    'dto' => null
-                ];
+                if (!$property->getType()->isBuiltin()) {
+                    try {
+                        $typeReflection = new \ReflectionClass($property->getType()->getName());
+                        if (!$typeReflection->getParentClass()) {
+                            throw new \Exception('The type ' . $property->getType()->getName() . ' in '.$reflectionClass->getName().' must extend the class Anodio\\Dto\\AbstractDto');
+                        }
+                        if ($typeReflection->getParentClass()->getName()!==AbstractDto::class) {
+                            throw new \Exception('The type ' . $property->getType()->getName() . ' in '.$reflectionClass->getName().' must extend the class Anodio\\Dto\\AbstractDto');
+                        }
+                        $instructions[$property->getName()] = [
+                            'type' => 'dto',
+                            'dto' => $property->getType()->getName()
+                        ];
+                    } catch (\ReflectionException $e) {
+                        $instructions[$property->getName()] = [
+                            'type' => 'common',
+                            'dto' => null
+                        ];
+                    }
+                }
             }
-            $className::$instructions = $instructions;
         }
-
+        $this->containerBuilder->addDefinitions([
+            'instructions_dto_'.$className => \Di\factory(function(array $instructions) {
+                return $instructions;
+            })->parameter('instructions', $instructions)
+        ]);
 
         return true;
     }
