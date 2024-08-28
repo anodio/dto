@@ -95,10 +95,16 @@ class Dto extends AbstractAttribute
                     try {
                         $typeReflection = new \ReflectionClass($property->getType()->getName());
                         if (!$typeReflection->getParentClass()) {
-                            throw new \Exception('The type ' . $property->getType()->getName() . ' in '.$reflectionClass->getName().' must extend the class Anodio\\Dto\\AbstractDto');
+                            $instructions[$property->getName()] = [
+                                'type' => 'skip'
+                            ];
+                            continue;
                         }
                         if ($typeReflection->getParentClass()->getName()!==AbstractDto::class) {
-                            throw new \Exception('The type ' . $property->getType()->getName() . ' in '.$reflectionClass->getName().' must extend the class Anodio\\Dto\\AbstractDto');
+                            $instructions[$property->getName()] = [
+                                'type' => 'skip'
+                            ];
+                            continue;
                         }
                         $instructions[$property->getName()] = [
                             'type' => 'dto',
