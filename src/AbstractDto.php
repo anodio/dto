@@ -50,6 +50,8 @@ abstract class AbstractDto implements \JsonSerializable
                     $dto->{$property} = $data[$property];
                 } elseif (is_array($data[$property])) {
                     $dto->{$property} = $instruction['dto']::fromArray($data[$property], $strict);
+                } elseif (is_null($data[$property]) && isset($instruction['nullable']) && $instruction['nullable']) {
+                    $dto->{$property} = null;
                 } else {
                     throw new \Exception('The property ' . $property . ' must be an array or an instance of ' . $instruction['dto']);
                 }

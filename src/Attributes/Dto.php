@@ -108,7 +108,8 @@ class Dto extends AbstractAttribute
                         }
                         $instructions[$property->getName()] = [
                             'type' => 'dto',
-                            'dto' => $property->getType()->getName()
+                            'dto' => $property->getType()->getName(),
+                            'nullable'=>$property->getType()->allowsNull()
                         ];
                     } catch (\ReflectionException $e) {
                         $instructions[$property->getName()] = [
