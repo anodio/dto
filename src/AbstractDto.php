@@ -63,6 +63,8 @@ abstract class AbstractDto implements \JsonSerializable
                 }
             } elseif ($instruction['type']==='array') {
                 $dto->{$property} = $data[$property];
+            } elseif ($instruction['type']==='mixed') {
+                $dto->{$property} = $data[$property];
             } else {
                 $dto->{$property} = $data[$property];
             }
@@ -124,6 +126,8 @@ abstract class AbstractDto implements \JsonSerializable
                         $array[$property][] = $item->toArray();
                     }
                 } elseif ($instruction['type']==='array') {
+                    $array[$property] = $this->{$property};
+                } elseif ($instruction['type']==='mixed') {
                     $array[$property] = $this->{$property};
                 } else {
                     $array[$property] = $this->{$property};

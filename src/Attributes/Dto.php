@@ -37,7 +37,7 @@ class Dto extends AbstractAttribute
             if (!$property->hasType()) {
                 throw new \Exception('The property ' . $property->getName() . ' of the class ' . $className . ' must have a type');
             }
-            if (($property->getType() instanceof \ReflectionType && !($property->getType() instanceof \ReflectionUnionType)) && in_array($property->getType()->getName(), ['string', 'int', 'bool', 'float'])) {
+            if (($property->getType() instanceof \ReflectionType && !($property->getType() instanceof \ReflectionUnionType)) && in_array($property->getType()->getName(), ['string', 'int', 'bool', 'float', 'mixed'])) {
                 $instructions[$property->getName()] = [
                     'type' => 'common',
                     'dto' => null
